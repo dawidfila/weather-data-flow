@@ -67,7 +67,7 @@ try:
                 CREATE TABLE weather_current (
                     id SERIAL PRIMARY KEY,
                     location_id INT REFERENCES locations(id) ON DELETE CASCADE,
-                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
                     temp_c DECIMAL(4,1),
                     humidity INT,
                     wind_kph DECIMAL(4,1),
