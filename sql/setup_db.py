@@ -76,7 +76,26 @@ try:
                     feelslike_c DECIMAL(4,1),
                     condition_text VARCHAR(100)
                 );
-            """
+            """,
+            "weather_forecast": """
+                CREATE TABLE weather_forecast (
+                    id SERIAL PRIMARY KEY,
+                    location_id INT REFERENCES locations(id) ON DELETE CASCADE,
+                    timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    date DATE,
+                    max_temp_c DECIMAL(4,1),
+                    min_temp_c DECIMAL(4,1),
+                    avg_temp_c DECIMAL(4,1),
+                    max_wind_kph DECIMAL(4,1),
+                    total_precip_mm DECIMAL(4,1),
+                    avg_humidity INT,
+                    condition_text VARCHAR(100),
+                    uv DECIMAL(4,1),
+                    sunrise TIME,
+                    sunset TIME,
+                    CONSTRAINT unique_location_date UNIQUE (location_id, date)
+                );
+            """    
         }
 
         # Check and create tables
