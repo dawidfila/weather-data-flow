@@ -17,6 +17,8 @@ API_KEY = os.getenv("API_KEY")
 
 CITY = "Warsaw"
 
+forecast_days = 7
+
 def fetch_data_from_api(url, params=None):
     try:
         response = requests.get(url, params=params)
@@ -41,7 +43,6 @@ def save_data_to_db(query, data):
         if connection:
             cursor.close()
             connection.close()
-
 
 def fetch_or_create_location(city, country, lat, lon, timezone):
     try:
@@ -71,7 +72,6 @@ def fetch_or_create_location(city, country, lat, lon, timezone):
         if connection:
             cursor.close()
             connection.close()
-
 
 def check_last_weather_update(location_id):
     try:
@@ -144,8 +144,86 @@ def weather_current():
                 # Save current weather data to database
                 save_data_to_db(query, [weather_data])
             else:
-                print(f"Too little time has passed since the last update. The last update was {time_diff} ago.")
+                print(f"Too little time has passed since the last update. The last update was {str(time_diff).split('.')[0]} ago.")
+        else:
+            print("Failed to find or add location.")
+
+def weather_forecast():
+    url = "https://api.weatherapi.com/v1/forecast.json"
+    params = {
+        "key": API_KEY,
+        "q": CITY,
+        "days": forecast_days
+    }
+
+    data = fetch_data_from_api(url, params)
+
+    if data:
+        location_data = data['location']
+        forecast_data = data['forecast']['forecastday']
+
+        city = location_data['name']
+        country = location_data['country']
+        lat = location_data['lat']
+        lon = location_data['lon']
+        timezone = location_data['tz_id']
+
+        location_id = fetch_or_create_location(city, country, lat, lon, timezone)
+
+        if location_id:
+            for forecast in forecast_data:
+                date = forecast['date']
+                max_temp_c = forecast['day']['maxtemp_c']
+                min_temp_c = forecast['day']['mintemp_c']
+                avg_temp_c = forecast['day']['avgtemp_c']
+                max_wind_kph = forecast['day']['maxwind_kph']
+                total_precip_mm = forecast['day']['totalprecip_mm']
+                avg_humidity = forecast['day']['avghumidity']
+                condition_text = forecast['day']['condition']['text']
+                uv = forecast['day']['uv']
+                sunrise = forecast['astro']['sunrise']
+                sunset = forecast['astro']['sunset']
+                
+                query = """
+                    INSERT INTO weather_forecast (
+                        location_id, date, max_temp_c, min_temp_c, avg_temp_c, 
+                        max_wind_kph, total_precip_mm, avg_humidity, condition_text, 
+                        uv, sunrise, sunset
+                    ) 
+                    VALUES (
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                    )
+                    ON CONFLICT (location_id, date) 
+                    DO UPDATE SET 
+                        max_temp_c = EXCLUDED.max_temp_c,
+                        min_temp_c = EXCLUDED.min_temp_c,
+                        avg_temp_c = EXCLUDED.avg_temp_c,
+                        max_wind_kph = EXCLUDED.max_wind_kph,
+                        total_precip_mm = EXCLUDED.total_precip_mm,
+                        avg_humidity = EXCLUDED.avg_humidity,
+                        condition_text = EXCLUDED.condition_text,
+                        uv = EXCLUDED.uv,
+                        sunrise = EXCLUDED.sunrise,
+                        sunset = EXCLUDED.sunset;
+                """
+                forecast_data = (
+                    location_id,
+                    date,
+                    max_temp_c,
+                    min_temp_c,
+                    avg_temp_c,
+                    max_wind_kph,
+                    total_precip_mm,
+                    avg_humidity,
+                    condition_text,
+                    uv,
+                    sunrise,
+                    sunset
+                )
+
+                save_data_to_db(query, [forecast_data])
         else:
             print("Failed to find or add location.")
 
 weather_current()
+weather_forecast()
